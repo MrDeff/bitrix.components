@@ -18,9 +18,11 @@ class siteComponentSectionList extends \CBitrixComponent{
 	public function onPrepareComponentParams($params)
 	{
 		$result = [
+			'IBLOCK_TYPE' => trim($params['IBLOCK_TYPE']),
 			'IBLOCK_ID' => (int) $params['IBLOCK_ID'],
-			'SECTION_ID' => trim($params['SECTION_ID']),
-			'URL_DETAIL' => trim($params['URL_DETAIL']),
+			'SECTION_ID' => (int) $params['SECTION_ID'],
+			'SECTION_CODE' => trim($params['SECTION_CODE']),
+			'URL_SECTION' => trim($params['URL_SECTION']),
 			'CACHE_TYPE' => $params['CACHE_TYPE'],
 			'CACHE_TIME' => intval($params['CACHE_TIME']) > 0 ? intval($params['CACHE_TIME']) : 86400,
 		];
@@ -50,7 +52,33 @@ class siteComponentSectionList extends \CBitrixComponent{
 	
 	protected function getResult()
 	{
-
+		
+		$dataSections = CIBlockSection::GetList(Array('ID'=>'ASC'), array(
+			'IBLOCK_TYPE'=>$this->arParams['IBLOCK_TYPE'],
+			'IBLOCK_ID'=>$this->arParams['IBLOCK_ID'],
+			'SECTION_ID'=>$this->arParams['SECTION_ID'],
+			'ACTIVE' => 'Y',
+			'GLOBAL_ACTIVE'=>'Y',
+			), false,
+			array(
+				'ID',
+				'CODE',
+				'IBLOCK_ID',
+				'IBLOCK_SECTION_ID',
+				'NAME',
+				'PICTURE',
+				'DESCRIPTION',
+				'DESCRIPTION_TYPE',
+				'DEPTH_LEVEL',
+				'SECTION_PAGE_URL',
+				'DETAIL_PICTURE'
+				
+			));
+		$dataSections->SetUrlTemplates("", $this->arParams["URL_SECTION"]);
+		while ($section = $dataSections->GetNext(true,false))
+		{
+			$this->arResult['SECTIONS'][] = $section;
+		}
 	}
 	
 	public function executeComponent()
