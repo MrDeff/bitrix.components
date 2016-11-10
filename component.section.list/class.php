@@ -9,12 +9,13 @@
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 use \Bitrix\Main;
 use \Bitrix\Main\Localization\Loc;
+use \Bitrix\Iblock;
 Loc::loadMessages(__FILE__);
 
 class siteComponentSectionList extends \CBitrixComponent{
 	
 	protected $cacheAddon = array();
-	protected $cacheKeys = array();
+	protected $cacheKeys = array('PARENT_SECTION');
 	public function onPrepareComponentParams($params)
 	{
 		$result = [
@@ -52,14 +53,17 @@ class siteComponentSectionList extends \CBitrixComponent{
 	
 	protected function getResult()
 	{
-		
-		$dataSections = CIBlockSection::GetList(Array('ID'=>'ASC'), array(
+		$filter = array(
 			'IBLOCK_TYPE'=>$this->arParams['IBLOCK_TYPE'],
 			'IBLOCK_ID'=>$this->arParams['IBLOCK_ID'],
-			'SECTION_ID'=>$this->arParams['SECTION_ID'],
 			'ACTIVE' => 'Y',
 			'GLOBAL_ACTIVE'=>'Y',
-			), false,
+		);
+		if($this->arParams['SECTION_ID'] == 0 && strlen($this->arParams['SECTION_CODE'])>0){
+			$this->arResult['PARENT_SECTION'] = CIBlockSection::GetList(array(), array_merge($filter,array('=CODE'=>$this->arParams['SECTION_CODE'])), false, array('ID','IBLOCK_ID','NAME'))->Fetch();
+			$this->arParams['SECTION_ID'] = $this->arResult['PARENT_SECTION']['ID'];
+		}
+		$dataSections = CIBlockSection::GetList(Array('left_margin'=>'ASC'), array_merge($filter,array('SECTION_ID'=>$this->arParams['SECTION_ID'])), false,
 			array(
 				'ID',
 				'CODE',
@@ -72,11 +76,31 @@ class siteComponentSectionList extends \CBitrixComponent{
 				'DEPTH_LEVEL',
 				'SECTION_PAGE_URL',
 				'DETAIL_PICTURE'
-				
-			));
+			
+			)
+		);
 		$dataSections->SetUrlTemplates("", $this->arParams["URL_SECTION"]);
 		while ($section = $dataSections->GetNext(true,false))
 		{
+			$ipropValues = new \Bitrix\Iblock\InheritedProperty\SectionValues($section["IBLOCK_ID"], $section["ID"]);
+			$section["IPROPERTY_VALUES"] = $ipropValues->getValues();
+			
+			Iblock\Component\Tools::getFieldImageData(
+				$section,
+				array('PICTURE','DETAIL_PICTURE'),
+				Iblock\Component\Tools::IPROPERTY_ENTITY_SECTION,
+				'IPROPERTY_VALUES'
+			);
+			
+			$buttons = CIBlock::GetPanelButtons(
+				$section["IBLOCK_ID"],
+				0,
+				$section["ID"],
+				array("SESSID"=>false)
+			);
+			$section["EDIT_LINK"] = $buttons["edit"]["edit_section"]["ACTION_URL"];
+			$section["DELETE_LINK"] = $buttons["edit"]["delete_section"]["ACTION_URL"];
+			
 			$this->arResult['SECTIONS'][] = $section;
 		}
 	}
@@ -97,6 +121,22 @@ class siteComponentSectionList extends \CBitrixComponent{
 		{
 			$this->abortResultCache();
 			ShowError($e->getMessage());
+		}
+	}
+	
+	protected function after(){
+		global $USER,$APPLICATION;
+		if($USER->IsAuthorized() && $APPLICATION->GetShowIncludeAreas() && Main\Loader::includeModule("iblock")){
+			//todo: мне не нравяться эти педали, возвращают и делают слишком много... надо что-то придумать
+			$buttons = CIBlock::GetPanelButtons(
+				$this->arParams["IBLOCK_ID"],
+				0,
+				$this->arResult["PARENT_SECTION"]["ID"],
+				array("RETURN_URL" =>  array(
+					"add_section" => ($this->arParams["URL_SECTION"] != '' ? $this->arParams["URL_SECTION"]: CIBlock::GetArrayByID($this->arParams["IBLOCK_ID"], "SECTION_PAGE_URL")),
+				),'SECTION_BUTTONS'=>true)
+			);
+			$this->addIncludeAreaIcons(CIBlock::GetComponentMenu($APPLICATION->GetPublicShowMode(), $buttons));
 		}
 	}
 }
