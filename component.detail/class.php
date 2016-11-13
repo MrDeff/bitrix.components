@@ -195,8 +195,8 @@ class siteComponentDetail extends \CBitrixComponent{
 				$this->getResult();
 				$this->putDataToCache();
 				$this->includeComponentTemplate();
-				$this->after();
 			}
+			$this->after();
 		}
 		catch (Exception $e)
 		{
