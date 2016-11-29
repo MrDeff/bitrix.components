@@ -35,8 +35,8 @@ class siteComponentSection extends \CBitrixComponent{
 		
 		$this->navParams = array(
 			"nPageSize" => $result['PAGE_ELEMENT_COUNT'],
-			"bDescPageNumbering" => 'N',
-			"bShowAll" => 'N',
+			"bDescPageNumbering" => false,
+			"bShowAll" => false,
 		);
 		$this->navigation = CDBResult::GetNavParams($this->navParams);
 		
